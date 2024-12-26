@@ -1,39 +1,38 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { StatusBar } from 'expo-status-bar';
+import { Slot, useRouter, useSegments } from 'expo-router';
+import { useAuth } from '../hooks/useAuth';
+import { View, ActivityIndicator, Text } from 'react-native';
 import { useEffect } from 'react';
-import 'react-native-reanimated';
-
-import { useColorScheme } from '@/hooks/useColorScheme';
-
-// Prevent the splash screen from auto-hiding before asset loading is complete.
-SplashScreen.preventAutoHideAsync();
+import '../global.css';
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  const [loaded] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-  });
+  const { user, loading } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
 
   useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [loaded]);
+    console.log('Current segments:', segments);
+    if (!loading) {
+      // Check if user is on an auth screen
+      const inAuthGroup = segments[0] === '(auth)';
 
-  if (!loaded) {
-    return null;
+      if (!user && !inAuthGroup) {
+        // If no user and not on auth screen, redirect to login
+        router.replace('/(auth)/login');
+      } else if (user && inAuthGroup) {
+        // If user is logged in and on auth screen, redirect to home
+        router.replace('/(tabs)/home');
+      }
+    }
+  }, [user, loading, segments]);
+
+  if (loading) {
+    return (
+      <View className='flex-1 justify-center items-center bg-white'>
+        <ActivityIndicator size='large' color='#FF6B6B' />
+        <Text className='mt-4'>Loading...</Text>
+      </View>
+    );
   }
 
-  return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
-  );
+  return <Slot />;
 }
